@@ -46,6 +46,13 @@ class WhatsAppTracker {
 
         // Message received
         this.client.on('message', async (message) => {
+            console.log(`\n📨 Message received from: ${message.from}`);
+            console.log(`   Target group: ${config.TARGET_GROUP_ID}`);
+            console.log(`   Is target group: ${message.from === config.TARGET_GROUP_ID}`);
+            console.log(`   Message type: ${message.type}`);
+            console.log(`   Is status: ${message.isStatus}`);
+            console.log(`   Body: "${message.body}"`);
+            
             await this.handleMessage(message);
         });
 
@@ -79,7 +86,7 @@ class WhatsAppTracker {
 
             if (processedData) {
                 // Add to Excel
-                this.excelManager.addMessage(processedData);
+                await this.excelManager.addMessage(processedData);
 
                 // Get spending insights
                 const insights = this.messageProcessor.getSpendingInsights(processedData);

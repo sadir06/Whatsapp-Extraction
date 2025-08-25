@@ -53,10 +53,10 @@ class ExcelManager {
             }
         }
 
-        this.saveWorkbook();
+        await this.saveWorkbook();
     }
 
-    addMessage(messageData) {
+    async addMessage(messageData) {
         try {
             const {
                 timestamp,
@@ -88,7 +88,7 @@ class ExcelManager {
                 this.updateSpendingAnalysis(extractedNumbers, month, year);
             }
 
-            this.saveWorkbook();
+            await this.saveWorkbook();
             console.log(`✅ Added message from ${sender} to Excel`);
         } catch (error) {
             console.error('❌ Error adding message to Excel:', error);
@@ -158,11 +158,29 @@ class ExcelManager {
         }
     }
 
-    saveWorkbook() {
+    async saveWorkbook() {
         try {
-            XLSX.writeFile(this.workbook, config.EXCEL_FILE_PATH);
+            // Try to save with retry logic for file lock issues
+            let retries = 3;
+            while (retries > 0) {
+                try {
+                    XLSX.writeFile(this.workbook, config.EXCEL_FILE_PATH);
+                    return; // Success, exit the retry loop
+                } catch (error) {
+                    if (error.code === 'EBUSY' && retries > 1) {
+                        console.log(`⚠️ Excel file is busy, retrying... (${retries} attempts left)`);
+                        retries--;
+                        // Wait a bit before retrying
+                        const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                        await wait(1000);
+                    } else {
+                        throw error; // Re-throw if not a busy error or no retries left
+                    }
+                }
+            }
         } catch (error) {
             console.error('❌ Error saving Excel file:', error);
+            // Don't throw the error to prevent the app from crashing
         }
     }
 
