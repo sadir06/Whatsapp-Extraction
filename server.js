@@ -18,10 +18,21 @@ app.get('/', (req, res) => {
     res.json({
         message: 'WhatsApp Message Tracker',
         status: 'running',
+        whatsappConnected: tracker.isConnected,
         endpoints: {
             health: '/health',
-            status: '/'
+            status: '/',
+            auth: '/auth-status'
         }
+    });
+});
+
+// Authentication status endpoint
+app.get('/auth-status', (req, res) => {
+    res.json({
+        whatsappConnected: tracker.isConnected,
+        needsQRCode: !tracker.isConnected,
+        message: tracker.isConnected ? 'WhatsApp is connected and ready!' : 'WhatsApp needs authentication - check logs for QR code'
     });
 });
 

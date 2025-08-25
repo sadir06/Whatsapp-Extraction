@@ -25,6 +25,9 @@ class WhatsAppTracker {
         // QR Code generation
         this.client.on('qr', (qr) => {
             console.log('📱 QR Code received. Scan this with your WhatsApp:');
+            console.log('🔗 QR Code URL (copy this to browser):');
+            console.log(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr)}`);
+            console.log('📋 Or scan the QR code below:');
             qrcode.generate(qr, { small: true });
         });
 
