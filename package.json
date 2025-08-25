@@ -1,0 +1,31 @@
+{
+  "name": "whatsapp-extraction",
+  "version": "1.0.0",
+  "description": "WhatsApp message tracker with Excel integration and spending analysis",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "find-groups": "node findGroupId.js",
+    "tracker": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "fs-extra": "^11.1.1",
+    "moment": "^2.29.4",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.23.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "whatsapp",
+    "excel",
+    "tracking",
+    "messages"
+  ],
+  "author": "",
+  "license": "MIT"
+}
