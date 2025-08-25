@@ -104,14 +104,14 @@ class WhatsAppTracker {
 
     displayMessageInsights(messageData, insights) {
         console.log('\n💰 Spending Analysis:');
-        console.log(`   Sender: ${messageData.sender}`);
-        console.log(`   Amount: $${insights.totalAmount.toFixed(2)}`);
-        console.log(`   Category: ${insights.category}`);
-        console.log(`   High Value: ${insights.isHighValue ? 'Yes' : 'No'}`);
-        console.log(`   Numbers Found: ${insights.amountCount}`);
+        console.log(`   👤 Sender: ${messageData.sender}`);
+        console.log(`   💵 Amount: $${insights.totalAmount.toFixed(2)}`);
+        console.log(`   📂 Category: ${insights.category}`);
+        console.log(`   ⚡ High Value: ${insights.isHighValue ? 'Yes' : 'No'}`);
+        console.log(`   🔢 Numbers Found: ${insights.amountCount}`);
         
         if (messageData.extractedItems && messageData.extractedItems.length > 0) {
-            console.log(`   Items Detected:`);
+            console.log(`   🛒 Items Detected:`);
             messageData.extractedItems.forEach(item => {
                 console.log(`     • ${item.item}: $${item.amount}`);
             });
@@ -136,6 +136,17 @@ class WhatsAppTracker {
             summary.recentMonths.forEach(month => {
                 console.log(`     ${month.month} ${month.year}: $${month.total.toFixed(2)} (${month.transactions} transactions)`);
             });
+
+            // Display individual spending breakdown
+            if (summary.individualSpending && Object.keys(summary.individualSpending).length > 0) {
+                console.log('\n👥 Individual Spending Breakdown:');
+                Object.keys(summary.individualSpending).forEach(monthKey => {
+                    console.log(`   ${monthKey}:`);
+                    summary.individualSpending[monthKey].forEach(person => {
+                        console.log(`     ${person.person}: $${person.amount.toFixed(2)} (${person.percentage}%)`);
+                    });
+                });
+            }
         } else {
             console.log('\n📊 No spending data available yet. Start sending messages with amounts!');
         }

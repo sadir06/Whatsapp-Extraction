@@ -8,10 +8,19 @@ class ExcelManager {
         this.workbook = null;
         this.messagesSheet = null;
         this.spendingSheet = null;
-        this.initializeWorkbook();
+        this.individualSpendingSheet = null;
+        this.initialized = false;
+        this.initPromise = this.initializeWorkbook();
     }
 
-    initializeWorkbook() {
+    async ensureInitialized() {
+        if (!this.initialized) {
+            await this.initPromise;
+            this.initialized = true;
+        }
+    }
+
+    async initializeWorkbook() {
         try {
             if (fs.existsSync(config.EXCEL_FILE_PATH)) {
                 this.workbook = XLSX.readFile(config.EXCEL_FILE_PATH);
@@ -21,14 +30,14 @@ class ExcelManager {
                 console.log('📊 Created new Excel workbook');
             }
 
-            this.setupSheets();
+            await this.setupSheets();
         } catch (error) {
             console.error('❌ Error initializing Excel workbook:', error);
             throw error;
         }
     }
 
-    setupSheets() {
+    async setupSheets() {
         // Setup Messages sheet
         if (!this.workbook.Sheets[config.SHEET_NAME]) {
             const messagesHeaders = [
@@ -53,11 +62,24 @@ class ExcelManager {
             }
         }
 
+        // Setup Individual Spending Analysis sheet
+        if (!this.workbook.Sheets['Individual Spending']) {
+            const individualHeaders = [
+                ['Month', 'Year', 'Person', 'Total Spent', 'Number of Transactions', 'Percentage of Total']
+            ];
+            this.individualSpendingSheet = XLSX.utils.aoa_to_sheet(individualHeaders);
+            XLSX.utils.book_append_sheet(this.workbook, this.individualSpendingSheet, 'Individual Spending');
+        } else {
+            this.individualSpendingSheet = this.workbook.Sheets['Individual Spending'];
+        }
+
         await this.saveWorkbook();
     }
 
     async addMessage(messageData) {
         try {
+            await this.ensureInitialized();
+            
             const {
                 timestamp,
                 sender,
@@ -85,7 +107,7 @@ class ExcelManager {
 
             // Update spending analysis if numbers were extracted
             if (extractedNumbers.length > 0 && config.ENABLE_SPENDING_ANALYSIS) {
-                this.updateSpendingAnalysis(extractedNumbers, month, year);
+                await this.updateSpendingAnalysis(extractedNumbers, month, year, sender);
             }
 
             await this.saveWorkbook();
@@ -95,7 +117,7 @@ class ExcelManager {
         }
     }
 
-    updateSpendingAnalysis(numbers, month, year) {
+    async updateSpendingAnalysis(numbers, month, year, sender) {
         try {
             // Convert string numbers to actual numbers
             const numericValues = numbers
@@ -152,9 +174,81 @@ class ExcelManager {
                 XLSX.utils.sheet_add_aoa(this.spendingSheet, [newRow], { origin: -1 });
             }
 
+            // Update individual spending analysis
+            await this.updateIndividualSpendingAnalysis(sender, totalSpent, numericValues.length, month, year);
+
             console.log(`💰 Updated spending analysis for ${month} ${year}`);
         } catch (error) {
             console.error('❌ Error updating spending analysis:', error);
+        }
+    }
+
+    async updateIndividualSpendingAnalysis(sender, amount, transactionCount, month, year) {
+        try {
+            // Read existing individual spending data
+            const existingData = XLSX.utils.sheet_to_json(this.individualSpendingSheet, { header: 1 });
+            
+            // Find existing row for this person/month/year
+            let existingRowIndex = -1;
+            for (let i = 1; i < existingData.length; i++) {
+                if (existingData[i][0] === month && existingData[i][1] === year && existingData[i][2] === sender) {
+                    existingRowIndex = i;
+                    break;
+                }
+            }
+
+            if (existingRowIndex > 0) {
+                // Update existing row
+                const existingRow = existingData[existingRowIndex];
+                const newTotalSpent = existingRow[3] + amount;
+                const newTransactionCount = existingRow[4] + transactionCount;
+                
+                // Calculate percentage of total monthly spending
+                const monthlyTotal = this.getMonthlyTotal(month, year);
+                const percentage = monthlyTotal > 0 ? (newTotalSpent / monthlyTotal * 100).toFixed(2) : 0;
+
+                const updatedRow = [
+                    month, year, sender, newTotalSpent, newTransactionCount, percentage
+                ];
+
+                // Replace the existing row
+                for (let j = 0; j < updatedRow.length; j++) {
+                    this.individualSpendingSheet[XLSX.utils.encode_cell({ r: existingRowIndex, c: j })] = {
+                        v: updatedRow[j],
+                        t: typeof updatedRow[j] === 'number' ? 'n' : 's'
+                    };
+                }
+            } else {
+                // Add new row
+                const monthlyTotal = this.getMonthlyTotal(month, year);
+                const percentage = monthlyTotal > 0 ? (amount / monthlyTotal * 100).toFixed(2) : 0;
+                
+                const newRow = [
+                    month, year, sender, amount, transactionCount, percentage
+                ];
+                XLSX.utils.sheet_add_aoa(this.individualSpendingSheet, [newRow], { origin: -1 });
+            }
+
+            console.log(`👤 Updated individual spending for ${sender} in ${month} ${year}`);
+        } catch (error) {
+            console.error('❌ Error updating individual spending analysis:', error);
+        }
+    }
+
+    getMonthlyTotal(month, year) {
+        try {
+            if (!this.spendingSheet) return 0;
+            
+            const data = XLSX.utils.sheet_to_json(this.spendingSheet, { header: 1 });
+            for (let i = 1; i < data.length; i++) {
+                if (data[i][0] === month && data[i][1] === year) {
+                    return data[i][2] || 0;
+                }
+            }
+            return 0;
+        } catch (error) {
+            console.error('❌ Error getting monthly total:', error);
+            return 0;
         }
     }
 
@@ -194,6 +288,15 @@ class ExcelManager {
             // Skip header row
             const spendingData = data.slice(1);
             
+            // Get individual spending data
+            let individualData = [];
+            if (this.individualSpendingSheet) {
+                const individualRawData = XLSX.utils.sheet_to_json(this.individualSpendingSheet, { header: 1 });
+                if (individualRawData.length > 1) {
+                    individualData = individualRawData.slice(1);
+                }
+            }
+            
             const summary = {
                 totalMonths: spendingData.length,
                 totalSpent: spendingData.reduce((sum, row) => sum + (row[2] || 0), 0),
@@ -204,13 +307,44 @@ class ExcelManager {
                     year: row[1],
                     total: row[2],
                     transactions: row[3]
-                }))
+                })),
+                individualSpending: this.getIndividualSpendingSummary(individualData)
             };
 
             return summary;
         } catch (error) {
             console.error('❌ Error getting spending summary:', error);
             return null;
+        }
+    }
+
+    getIndividualSpendingSummary(individualData) {
+        try {
+            const summary = {};
+            
+            individualData.forEach(row => {
+                const month = row[0];
+                const year = row[1];
+                const person = row[2];
+                const amount = row[3] || 0;
+                const percentage = row[5] || 0;
+                
+                const monthKey = `${month} ${year}`;
+                if (!summary[monthKey]) {
+                    summary[monthKey] = [];
+                }
+                
+                summary[monthKey].push({
+                    person: person,
+                    amount: amount,
+                    percentage: percentage
+                });
+            });
+            
+            return summary;
+        } catch (error) {
+            console.error('❌ Error getting individual spending summary:', error);
+            return {};
         }
     }
 }
