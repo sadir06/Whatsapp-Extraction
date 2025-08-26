@@ -1,5 +1,8 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const WhatsAppTracker = require('./index');
+const config = require('./config');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -22,7 +25,8 @@ app.get('/', (req, res) => {
         endpoints: {
             health: '/health',
             status: '/',
-            auth: '/auth-status'
+            auth: '/auth-status',
+            downloadExcel: '/download'
         }
     });
 });
@@ -34,6 +38,19 @@ app.get('/auth-status', (req, res) => {
         needsQRCode: !tracker.isConnected,
         message: tracker.isConnected ? 'WhatsApp is connected and ready!' : 'WhatsApp needs authentication - check logs for QR code'
     });
+});
+
+// Download the Excel file
+app.get('/download', (req, res) => {
+    try {
+        const excelPath = path.resolve(config.EXCEL_FILE_PATH);
+        if (!fs.existsSync(excelPath)) {
+            return res.status(404).json({ error: 'Excel file not found' });
+        }
+        res.download(excelPath, path.basename(excelPath));
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to download file', details: String(err) });
+    }
 });
 
 // Start the server

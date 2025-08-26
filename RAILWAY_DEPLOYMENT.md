@@ -92,6 +92,30 @@ PORT=3000
 
 3. **Railway will automatically redeploy**
 
+### Environment Variables (Recommended)
+Instead of editing files, set these in Railway → Variables:
+
+```
+TARGET_GROUP_ID=YOUR_ACTUAL_GROUP_ID@g.us
+EXCEL_FILE_PATH=/data/whatsapp_messages.xlsx
+WWEBJS_AUTH_DIR=/data/.wwebjs_auth
+NODE_ENV=production
+PORT=3000
+```
+
+Notes:
+- `EXCEL_FILE_PATH` and `WWEBJS_AUTH_DIR` point to `/data`, which should be a persistent volume.
+- This preserves WhatsApp session and your Excel file across deploys.
+
+### Persistent Storage (Volume)
+1. In Railway → your service → Storage → Add Volume
+2. Mount path: `/data`
+3. Set the env vars above to use `/data`
+
+### Download the Excel File
+- Once deployed, download via: `https://YOUR-APP.railway.app/download`
+- Health/status: `https://YOUR-APP.railway.app/health`
+
 ### Customize Settings
 Edit `config.js` locally and push changes:
 - Excel file path
