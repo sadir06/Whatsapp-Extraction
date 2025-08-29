@@ -38,6 +38,9 @@ class WhatsAppTracker {
             this.isConnected = true;
             console.log('✅ WhatsApp client is ready!');
             console.log(`🎯 Monitoring group: ${config.TARGET_GROUP_ID}`);
+            console.log(`📊 Excel file location: ${config.EXCEL_FILE_PATH}`);
+            console.log(`🌐 Download from Railway: https://YOUR-APP.railway.app/download`);
+            console.log('─'.repeat(50));
             this.displaySpendingSummary();
         });
 
@@ -48,12 +51,13 @@ class WhatsAppTracker {
 
         // Message received
         this.client.on('message', async (message) => {
-            console.log(`\n📨 Message received from: ${message.from}`);
-            console.log(`   Target group: ${config.TARGET_GROUP_ID}`);
-            console.log(`   Is target group: ${message.from === config.TARGET_GROUP_ID}`);
-            console.log(`   Message type: ${message.type}`);
-            console.log(`   Is status: ${message.isStatus}`);
-            console.log(`   Body: "${message.body}"`);
+            // Only log messages from the target group to reduce noise
+            if (message.from === config.TARGET_GROUP_ID) {
+                console.log(`\n📨 Message received from target group: ${message.from}`);
+                console.log(`   Message type: ${message.type}`);
+                console.log(`   Is status: ${message.isStatus}`);
+                console.log(`   Body: "${message.body}"`);
+            }
             
             await this.handleMessage(message);
         });
@@ -97,6 +101,12 @@ class WhatsAppTracker {
                 if (insights.hasAmount) {
                     this.displayMessageInsights(processedData, insights);
                 }
+                
+                // Show Excel file info
+                console.log(`📊 Excel updated! File: ${config.EXCEL_FILE_PATH}`);
+                console.log(`   📋 Messages Sheet: All messages with extracted numbers`);
+                console.log(`   💰 Spending Analysis: Monthly summaries and totals`);
+                console.log(`   👥 Individual Spending: Per-person breakdowns`);
             }
 
         } catch (error) {
